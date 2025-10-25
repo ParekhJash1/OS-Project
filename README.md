@@ -90,8 +90,8 @@ This project uses `PyPDF2` to automatically count the pages in PDF files. You ca
 
 # Clone the repository (or download the files)
 
-git clone [https://github.com/ParekhJash1/OS-Project/tree/main)
-cd Os-project
+git clone [(https://github.com/ParekhJash1/OS-Project)]
+cd OS-Project
 
 # Install the required packages
 
