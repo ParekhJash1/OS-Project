@@ -1,0 +1,162 @@
+import threading
+import time
+
+class Printer(threading.Thread):
+    """A worker thread representing a single printer."""
+    
+    def __init__(self, printer_id, printer_name, manager, update_queue):
+        super().__init__(daemon=True)
+        self.printer_id = printer_id
+        self.printer_name = printer_name # For display
+        self.manager = manager
+        self.update_queue = update_queue 
+        
+        self.current_job = None
+        self.is_running = True
+        self.is_paused = threading.Event()
+        self.shutdown_flag = threading.Event() 
+        
+        self.interrupt_lock = threading.Lock()
+        self.preempt_with_job = None
+        self.cancel_current_job = False
+
+    def log(self, message):
+        """Sends a log message to the GUI."""
+        timestamp = time.strftime('%H:%M:%S')
+        self.send_update('log', f"[{timestamp}] [{self.printer_name}] {message}")
+
+    def send_update(self, command, data):
+        """Puts an update message into the queue for the GUI."""
+        if self.is_running:
+            self.update_queue.put((command, data))
+
+    def send_status_update(self):
+        """Sends this printer's current status to the GUI."""
+        job_snapshot = self.current_job.get_snapshot() if self.current_job else None
+        
+        # --- MODIFICATION: Determine status dynamically ---
+        current_status = "Idle" # Default
+        if self.current_job:
+            current_status = self.current_job.status # "Printing" or "Paused"
+        elif self.is_paused.is_set():
+            current_status = "Paused" # Paused but no job
+        
+        printer_info = {
+            "id": self.printer_id,
+            "name": self.printer_name,
+            "job": job_snapshot,
+            "status": current_status # <-- FIX
+        }
+        self.send_update('printer_status', printer_info)
+
+    def run(self):
+        """Main loop for the printer thread."""
+        while not self.shutdown_flag.is_set():
+            try:
+                self.run_cycle()
+            except Exception as e:
+                self.log(f"ERROR: {e}")
+                self.current_job = None 
+        
+        if self.current_job:
+            self.log(f"Shutting down. Re-queuing {self.current_job.file_name}.")
+            self.current_job.status = "Queued"
+            self.manager.add_job_to_queue(self.current_job, preempted=True)
+
+        self.log("Offline.")
+        self.is_running = False
+        offline_status = {
+            "id": self.printer_id,
+            "name": self.printer_name,
+            "job": None,
+            "status": "Offline"
+        }
+        self.send_update('printer_status', offline_status)
+
+
+    def run_cycle(self):
+        """A single cycle of getting and processing a job."""
+        if self.is_paused.is_set():
+            if self.current_job:
+                self.current_job.status = "Paused"
+            self.send_status_update() 
+            time.sleep(0.5)
+            return
+
+        if not self.current_job:
+            self.send_status_update() # Report Idle
+            if self.shutdown_flag.is_set():
+                return
+            
+            self.current_job = self.manager.get_next_job(self.printer_id)
+            
+            if self.current_job:
+                self.current_job.status = "Printing"
+                self.log(f"Started: {self.current_job.file_name}")
+            else:
+                time.sleep(0.2) # No job, wait
+                return 
+        
+        self.send_status_update() # Report Printing
+        
+        time.sleep(0.5) # Simulate printing one page
+        
+        if self.is_paused.is_set() or self.shutdown_flag.is_set():
+            return
+
+        self.current_job.progress += 1
+        self.current_job.pages_remaining -= 1
+
+        with self.interrupt_lock:
+            if self.cancel_current_job:
+                self.log(f"Canceled: {self.current_job.file_name}")
+                self.current_job.status = "Canceled" 
+                self.current_job = None
+                self.cancel_current_job = False
+                self.send_status_update() 
+                return 
+
+            if self.preempt_with_job:
+                self.log(f"PREEMPTED by {self.preempt_with_job.file_name}.")
+                self.current_job.status = "Queued (Preempted)"
+                self.manager.add_job_to_queue(self.current_job, preempted=True)
+                
+                self.current_job = self.preempt_with_job
+                self.current_job.status = "Printing"
+                self.preempt_with_job = None
+                return 
+
+        if self.current_job.progress >= self.current_job.pages:
+            self.log(f"Finished: {self.current_job.file_name}")
+            self.current_job.status = "Completed"
+            self.current_job = None
+            self.send_status_update() 
+            
+    def toggle_pause(self):
+        """Toggles the pause state of this printer."""
+        if self.is_paused.is_set():
+            self.is_paused.clear()
+            if self.current_job:
+                 self.current_job.status = "Printing"
+            self.log("Resumed.")
+        else:
+            self.is_paused.set()
+            if self.current_job:
+                self.current_job.status = "Paused"
+            self.log("Paused.")
+        self.send_status_update()
+
+    def stop(self):
+        """Signals the printer to shut down gracefully after its current page."""
+        self.log("Shutdown signal received...")
+        self.shutdown_flag.set()
+
+    def set_cancel_flag(self):
+        """Sets a flag to cancel the current job."""
+        with self.interrupt_lock:
+            self.cancel_current_job = True
+
+    def preempt(self, new_job):
+        """Tells the printer to preempt its current job with a new one."""
+        with self.interrupt_lock:
+            self.preempt_with_job = new_job
