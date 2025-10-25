@@ -1,8 +1,140 @@
-Automatic Multi-Printer SchedulerThis is a multi-threaded desktop application, written in Python with Tkinter, that simulates an advanced printer scheduling system. This project was built to demonstrate core Operating Systems concepts, including dynamic process scheduling, resource management, and preemption in a concurrent environment.(Please replace placeholder.png with a screenshot of your app!)Team MembersJash Parekh (23BIT033)Maurya Patel (23BIT022)Tejas Arekar (23BIT046)Core FeaturesDynamic Multi-Printer Simulation: The application runs on a manager-worker model, with a central JobManager and a dynamic pool of Printer worker threads.Simulated Bluetooth Connectivity: "Connect" and "Disconnect" virtual printers at runtime using a simulated Bluetooth scanner, forcing the scheduler to adapt its resource pool.Automatic Scheduling Algorithms: The scheduler intelligently switches algorithms based on the current queue state:FCFS (First-Come, First-Served): Used for small, simple queues.SJF (Shortest Job First): Used for long queues with large jobs to optimize throughput.SRTF (Shortest Remaining Time First): Automatically used for queues with small jobs. Includes preemption, allowing a new, shorter job to interrupt a longer-running one.Full Job Control:Add single or multiple PDF jobs at once.Automatic Page Counting using PyPDF2 (if installed).Cancel any job, whether it's in the queue or actively printing.Printer Control: Pause and resume any active printer at any time.Modern UI:A clean, card-based design with sidebar navigation.A Light/Dark Mode theme switcher.Detailed Event Log: A color-coded, timestamped log that shows all actions from the JobManager and every Printer thread.Core OS Concepts DemonstratedThis project is a practical demonstration of several key computer science topics:Process Scheduling: Implementation and dynamic switching of FCFS, SJF, and SRTF algorithms.Preemption: The SRTF algorithm will actively preempt a running "process" (a print job) if a new process with a shorter-remaining-time arrives.Resource Management: The JobManager acts as the OS, managing a pool of shared resources (the printers) and allocating them to processes (jobs).Multithreading & Concurrency: The JobManager, each Printer, and the UI all run on separate threads, using thread-safe data structures (queue.Queue, threading.Lock) for communication.Deadlock/Starvation (Avoidance): The scheduling logic is designed to prevent starvation, where a very long job might never get to run (though this is possible in pure SJF, the auto-switching helps).Project StructureThe project is organized into several modules for clarity and maintainability:main.py: The entry point that launches the application.app_ui.py: Contains the main PrinterApp class and all Tkinter UI code.job_manager.py: Contains the JobManager class, which handles all scheduling logic and algorithm switching.printer.py: Contains the Printer class, which runs as a separate thread to simulate a hardware printer.print_job.py: Contains the PrintJob data class.scanner_window.py: Contains the BluetoothScannerWindow UI component.requirements.txt: A list of project dependencies.How to Run1. PrerequisitesPython 3.10 or newer (Tkinter is included with most Python installations).2. DependenciesThis project uses PyPDF2 to automatically count the pages in PDF files. You can install all dependencies using the requirements.txt file.# Clone the repository (or download the files)
+Automatic Multi-Printer Scheduler
+
+This is a multi-threaded desktop application, written in Python with Tkinter, that simulates an advanced printer scheduling system. This project was built to demonstrate core Operating Systems concepts, including dynamic process scheduling, resource management, and preemption in a concurrent environment.
+
+(Please replace placeholder.png with a screenshot of your app!)
+
+Team Members
+
+Jash Parekh (23BIT033)
+
+Maurya Patel (23BIT022)
+
+Tejas Arekar (23BIT046)
+
+Core Features
+
+Dynamic Multi-Printer Simulation: The application runs on a manager-worker model, with a central JobManager and a dynamic pool of Printer worker threads.
+
+Simulated Bluetooth Connectivity: "Connect" and "Disconnect" virtual printers at runtime using a simulated Bluetooth scanner, forcing the scheduler to adapt its resource pool.
+
+Automatic Scheduling Algorithms: The scheduler intelligently switches algorithms based on the current queue state:
+
+FCFS (First-Come, First-Served): Used for small, simple queues.
+
+SJF (Shortest Job First): Used for long queues with large jobs to optimize throughput.
+
+SRTF (Shortest Remaining Time First): Automatically used for queues with small jobs. Includes preemption, allowing a new, shorter job to interrupt a longer-running one.
+
+Full Job Control:
+
+Add single or multiple PDF jobs at once.
+
+Automatic Page Counting using PyPDF2 (if installed).
+
+Cancel any job, whether it's in the queue or actively printing.
+
+Printer Control: Pause and resume any active printer at any time.
+
+Modern UI:
+
+A clean, card-based design with sidebar navigation.
+
+A Light/Dark Mode theme switcher.
+
+Detailed Event Log: A color-coded, timestamped log that shows all actions from the JobManager and every Printer thread.
+
+Core OS Concepts Demonstrated
+
+This project is a practical demonstration of several key computer science topics:
+
+Process Scheduling: Implementation and dynamic switching of FCFS, SJF, and SRTF algorithms.
+
+Preemption: The SRTF algorithm will actively preempt a running "process" (a print job) if a new process with a shorter-remaining-time arrives.
+
+Resource Management: The JobManager acts as the OS, managing a pool of shared resources (the printers) and allocating them to processes (jobs).
+
+Multithreading & Concurrency: The JobManager, each Printer, and the UI all run on separate threads, using thread-safe data structures (queue.Queue, threading.Lock) for communication.
+
+Deadlock/Starvation (Avoidance): The scheduling logic is designed to prevent starvation, where a very long job might never get to run (though this is possible in pure SJF, the auto-switching helps).
+
+Project Structure
+
+The project is organized into several modules for clarity and maintainability:
+
+main.py: The entry point that launches the application.
+
+app_ui.py: Contains the main PrinterApp class and all Tkinter UI code.
+
+job_manager.py: Contains the JobManager class, which handles all scheduling logic and algorithm switching.
+
+printer.py: Contains the Printer class, which runs as a separate thread to simulate a hardware printer.
+
+print_job.py: Contains the PrintJob data class.
+
+scanner_window.py: Contains the BluetoothScannerWindow UI component.
+
+requirements.txt: A list of project dependencies.
+
+How to Run
+
+1. Prerequisites
+
+Python 3.10 or newer (Tkinter is included with most Python installations).
+
+2. Dependencies
+
+This project uses PyPDF2 to automatically count the pages in PDF files. You can install all dependencies using the requirements.txt file.
+
+# Clone the repository (or download the files)
 git clone [https://github.com/your-username/your-repository-name.git](https://github.com/your-username/your-repository-name.git)
 cd your-repository-name
 
 # Install the required packages
 pip install -r requirements.txt
-If you do not install PyPDF2, you must enter the page count manually for every job.3. ExecutionRun the main.py script from your terminal:python main.py
-How to UseStart the App: Run main.py. The app will launch with one "Default_Printer_1" already connected.Add Printers:Click "Manage Printers..." in the top config card.Click "Scan" to find simulated Bluetooth printers.Select one or more printers and click "Connect Selected". You will see them appear in the "Printer Status" list.Add Jobs:Click "Browse..." to select one (or multiple) PDF files.If PyPDF2 is installed, the "Pages" box will auto-fill. If not, enter the page count.Click "Add to Queue".Watch the Scheduler:The JobManager will automatically assign jobs from the "Print Queue" to any "Idle" printer.Watch the "Active Algorithm" label change as you add more jobs.Control the System:To Pause: Select a printer in the "Printer Status" list and click "Pause Selected Printer".To Cancel: Select a job (either in the queue or on a printer) and click "Cancel Selected Job".Change Theme: Use the "Light/Dark" dropdown to change the theme at any time.View Log: Click the log icon (📜) in the sidebar to view the detailed, color-coded event log.
+
+
+If you do not install PyPDF2, you must enter the page count manually for every job.
+
+3. Execution
+
+Run the main.py script from your terminal:
+
+python main.py
+
+
+How to Use
+
+Start the App: Run main.py. The app will launch with one "Default_Printer_1" already connected.
+
+Add Printers:
+
+Click "Manage Printers..." in the top config card.
+
+Click "Scan" to find simulated Bluetooth printers.
+
+Select one or more printers and click "Connect Selected". You will see them appear in the "Printer Status" list.
+
+Add Jobs:
+
+Click "Browse..." to select one (or multiple) PDF files.
+
+If PyPDF2 is installed, the "Pages" box will auto-fill. If not, enter the page count.
+
+Click "Add to Queue".
+
+Watch the Scheduler:
+
+The JobManager will automatically assign jobs from the "Print Queue" to any "Idle" printer.
+
+Watch the "Active Algorithm" label change as you add more jobs.
+
+Control the System:
+
+To Pause: Select a printer in the "Printer Status" list and click "Pause Selected Printer".
+
+To Cancel: Select a job (either in the queue or on a printer) and click "Cancel Selected Job".
+
+Change Theme: Use the "Light/Dark" dropdown to change the theme at any time.
+
+View Log: Click the log icon (📜) in the sidebar to view the detailed, color-coded event log.
