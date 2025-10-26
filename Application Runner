@@ -1,0 +1,5 @@
+from app_ui import PrinterApp
+
+if __name__ == "__main__":
+    app = PrinterApp()
+    app.mainloop()
