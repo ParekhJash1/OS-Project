@@ -1,0 +1,158 @@
+import threading
+import time
+from collections import deque
+
+# --- Project Modules ---
+from printer import Printer
+from print_job import PrintJob
+
+# --- Central Job Manager (Not a thread) ---
+class JobManager:
+    """Manages the central job queue and dispatches to printers."""
+    
+    def __init__(self, update_queue):
+        self.job_queue = deque()
+        self.lock = threading.RLock()
+        self.update_queue = update_queue
+        self.printers = {} # Store printers as dict {id: instance}
+        self.algorithm = "FCFS" # Default
+
+    def add_printer(self, printer_instance):
+        with self.lock:
+            self.printers[printer_instance.printer_id] = printer_instance
+        self.log(f"Printer '{printer_instance.printer_name}' (ID: {printer_instance.printer_id}) is online.")
+
+    def remove_printer(self, printer_id):
+        with self.lock:
+            if printer_id in self.printers:
+                printer = self.printers.pop(printer_id)
+                printer.stop()
+                self.log(f"Printer '{printer.printer_name}' (ID: {printer.printer_id}) is shutting down.")
+            
+    def get_printer_list(self):
+        with self.lock:
+            return list(self.printers.values())
+
+    def auto_select_algorithm(self):
+        """Auto-selects an algorithm based on queue state."""
+        with self.lock:
+            queue_length = len(self.job_queue)
+            
+            if queue_length == 0:
+                new_algo = "FCFS"
+            elif queue_length <= 3:
+                new_algo = "FCFS"
+            else:
+                try:
+                    avg_pages = sum(j.pages_remaining for j in self.job_queue) / queue_length
+                    if avg_pages <= 20: 
+                        new_algo = "SRTF"
+                    else: 
+                        new_algo = "SJF"
+                except ZeroDivisionError:
+                    new_algo = "FCFS" 
+
+            if self.algorithm != new_algo:
+                self.algorithm = new_algo
+                self.log(f"Algorithm auto-switched to: {self.algorithm}")
+                self.send_update('algorithm', self.algorithm)
+
+    def send_update(self, command, data):
+        """Puts an update message into the queue for the GUI."""
+        self.update_queue.put((command, data))
+
+    def log(self, message):
+        timestamp = time.strftime('%H:%M:%S')
+        self.send_update('log', f"[{timestamp}] [Manager] {message}")
+
+    def add_job_to_queue(self, job, preempted=False):
+        """Adds a job to the central queue."""
+        with self.lock:
+            if preempted:
+                self.job_queue.appendleft(job) 
+                self.log(f"Re-queued (Preempted): {job.file_name}")
+            else:
+                self.job_queue.append(job)
+                self.log(f"Added: {job.file_name} ({job.pages}p) to queue.")
+
+            if self.algorithm == "SRTF" and not preempted:
+                self.check_for_preemption(job)
+            
+            self.auto_select_algorithm() 
+        
+        self.send_full_update()
+
+
+    def check_for_preemption(self, new_job):
+        """Checks if the new job should preempt any running job."""
+        with self.lock:
+            best_target_printer = None
+            max_remaining_time = new_job.pages_remaining 
+            
+            for printer in self.printers.values():
+                if printer.current_job and not printer.is_paused.is_set():
+                    remaining_time = printer.current_job.pages_remaining
+                    if remaining_time > max_remaining_time:
+                        max_remaining_time = remaining_time
+                        best_target_printer = printer
+            
+            if best_target_printer:
+                self.log(f"SRTF PREEMPTION: Job {new_job.job_id} ({new_job.pages_remaining}p) is shorter.")
+                try:
+                    self.job_queue.remove(new_job) 
+                    best_target_printer.preempt(new_job) 
+                except ValueError:
+                    self.log(f"SRTF INFO: Job {new_job.job_id} already taken.")
+
+
+    def get_next_job(self, printer_id):
+        """Selects the next job based on the current algorithm."""
+        with self.lock:
+            self.auto_select_algorithm()
+
+            if not self.job_queue:
+                return None
+            
+            next_job = None
+            try:
+                if self.algorithm == "FCFS":
+                    next_job = self.job_queue.popleft()
+                
+                elif self.algorithm == "SJF" or self.algorithm == "SRTF":
+                    sorted_jobs = sorted(list(self.job_queue), key=lambda j: j.pages_remaining)
+                    next_job = sorted_jobs[0]
+                    self.job_queue.remove(next_job)
+                
+                if next_job:
+                    self.send_full_update() 
+            
+            except Exception as e:
+                self.log(f"Error in get_next_job: {e}")
+                return None
+        
+        return next_job
+
+
+    def cancel_job(self, job_id):
+        """Cancels a job, whether in the main queue or on a printer."""
+        with self.lock:
+            job_to_cancel = next((j for j in self.job_queue if j.job_id == job_id), None)
+            if job_to_cancel:
+                self.job_queue.remove(job_to_cancel)
+                self.log(f"Canceled: Removed {job_to_cancel.file_name} from main queue.")
+                self.send_full_update()
+                return
+
+            for printer in self.printers.values():
+                if printer.current_job and printer.current_job.job_id == job_id:
+                    self.log(f"Signaling Printer {printer.printer_name} to cancel {printer.current_job.file_name}.")
+                    printer.set_cancel_flag()
+                    return
+            
+            self.log(f"Could not find job {job_id} to cancel.")
+
+    def send_full_update(self):
+        """Sends a snapshot of the current queue state to the GUI."""
+        with self.lock:
+            queue_snapshot = [job.get_snapshot() for job in self.job_queue]
+        self.send_update('update_queue', queue_snapshot)
