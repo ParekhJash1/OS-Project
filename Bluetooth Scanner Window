@@ -1,0 +1,130 @@
+import tkinter as tk
+from tkinter import ttk
+
+class BluetoothScanner(tk.Toplevel):
+    """A modal popup to simulate scanning for Bluetooth printers."""
+    
+    def __init__(self, parent, connected_printers):
+        super().__init__(parent)
+        self.parent = parent
+        self.title("Simulated Bluetooth Scanner")
+        self.geometry("400x300")
+        self.transient(parent) # Keep on top
+        self.grab_set() # Modal
+        
+        # Simulated list of all discoverable printers
+        self.all_printers = {
+            "HP_LaserJet_BT": "00:1A:7D:DA:71:13",
+            "Epson_WF_BT": "08:00:4E:8B:0A:42",
+            "Canon_Pixma_BT": "BC:F1:C3:7E:21:A1",
+            "Brother_MFC_BT": "00:80:92:1A:BC:DE"
+        }
+        self.connected_printers = connected_printers # {id: name}
+        
+        self.init_ui()
+
+    def init_ui(self):
+        main_frame = ttk.Frame(self, padding=10, style="TFrame")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Use parent's styles
+        self.style = self.parent.style
+        self.configure(background=self.parent.BG_LIGHT)
+
+        list_frame = ttk.Frame(main_frame, style="Card.TFrame", padding=10)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        ttk.Label(list_frame, text="Discovered Printers:", style="Card.TLabel").pack(anchor="w", pady=(0, 5))
+        
+        self.scan_listbox = tk.Listbox(list_frame, 
+                                        background=self.parent.BG_WHITE, 
+                                        foreground=self.parent.TEXT_DARK,
+                                        selectbackground=self.parent.TREE_SELECT_BG,
+                                        selectforeground=self.parent.TEXT_DARK,
+                                        font=("Segoe UI", 10), 
+                                        selectmode=tk.MULTIPLE,
+                                        borderwidth=0,
+                                        highlightthickness=0)
+        self.scan_listbox.pack(fill=tk.BOTH, expand=True)
+        
+        button_frame = ttk.Frame(main_frame, style="TFrame")
+        button_frame.pack(fill=tk.X)
+        
+        self.scan_button = ttk.Button(button_frame, text="Scan", command=self.scan_for_devices)
+        self.scan_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
+        
+        self.connect_button = ttk.Button(button_frame, text="Connect Selected", command=self.connect, style="Success.TButton", state="disabled")
+        self.connect_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+
+        self.disconnect_button = ttk.Button(button_frame, text="Disconnect Selected", command=self.disconnect, style="Danger.TButton", state="disabled")
+        self.disconnect_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 0))
+        
+        self.scan_listbox.bind('<<ListboxSelect>>', self.on_selection_change)
+
+    def scan_for_devices(self):
+        """Simulates scanning for devices."""
+        self.scan_listbox.delete(0, tk.END)
+        self.scan_button.config(text="Scanning...", state="disabled")
+        self.connect_button.config(state="disabled")
+        self.disconnect_button.config(state="disabled")
+        
+        self.after(1000, self.finish_scan) # Simulate 1 second scan
+
+    def finish_scan(self):
+        for name, mac in self.all_printers.items():
+            display_name = f"{name} ({mac})"
+            self.scan_listbox.insert(tk.END, display_name)
+            
+            # Check if this printer is already connected
+            if name in self.connected_printers.values():
+                self.scan_listbox.itemconfig(tk.END, {'bg': '#d4edda', 'fg': '#155724'}) # Greenish
+        
+        self.scan_button.config(text="Scan", state="normal")
+
+    def on_selection_change(self, event=None):
+        """Enable/disable buttons based on selection."""
+        if not self.scan_listbox.curselection():
+            self.connect_button.config(state="disabled")
+            self.disconnect_button.config(state="disabled")
+            return
+        
+        self.connect_button.config(state="normal")
+        self.disconnect_button.config(state="normal")
+        
+    def connect(self):
+        """Connects the selected printers."""
+        selections = self.scan_listbox.curselection()
+        if not selections:
+            return
+            
+        for i in selections:
+            full_name = self.scan_listbox.get(i)
+            name_only = full_name.split(" (")[0]
+            
+            # Only add if not already connected
+            if name_only not in self.connected_printers.values():
+                self.parent.add_printer(name_only)
+        
+        self.destroy() # Close window
+
+    def disconnect(self):
+        """Disconnects the selected printers."""
+        selections = self.scan_listbox.curselection()
+        if not selections:
+            return
+
+        for i in selections:
+            full_name = self.scan_listbox.get(i)
+            name_only = full_name.split(" (")[0]
+            
+            # Find the ID of the printer with this name
+            printer_id_to_remove = None
+            for pid, pname in self.connected_printers.items():
+                if pname == name_only:
+                    printer_id_to_remove = pid
+                    break
+            
+            if printer_id_to_remove:
+                self.parent.remove_printer(printer_id_to_remove)
+        
+        self.destroy() # Close window
