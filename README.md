@@ -145,5 +145,5 @@ python main.py
 
 6. **Change Theme:** Use the "Light/Dark" dropdown to change the theme at any time.
 
-7. **View Log:** Click the **log icon** (📜) in the sidebar to view the detailed, color-coded event log.
+7. **View Log:** Click the **log icon** in the sidebar to view the detailed, color-coded event log.
 ```
