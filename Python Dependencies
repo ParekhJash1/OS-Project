@@ -1,16 +1,27 @@
-import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
-import threading
-import time
-from collections import deque
-import uuid
-import os
-from queue import Queue, Empty
+External Libraries:
+
+PyPDF2                #Used to open and read PDF files that the user uploads, and to count the number of pages. 
+
+Tkinter               #Used to build the main GUI window, buttons (like Add Job, Start Printing), and layout for the user interface.
 
 
-# --- Attempt to import PyPDF2 for PDF page counting ---
-try:
-    import PyPDF2
-    PYPDF2_AVAILABLE = True
-except ImportError:
-    PYPDF2_AVAILABLE = False
+
+Built-in Libraries:
+
+threading            #Allows the printing process to run in the background without freezing the interface.
+
+time                 #Used to simulate the actual printing process, adding realistic pauses (for example, 1 second per page).
+
+collections.deque    #Manages the print queue efficiently for FCFS, SJF, or other scheduling algorithms.
+
+uuid                 #Generates a unique ID for each print job so every job can be tracked individually.
+
+os                   #Used to manage file paths and verify the uploaded file’s existence before processing.
+
+queue                #Helps manage communication between threads (for adding or removing print jobs safely).
+
+tkinter.ttk          #Provides advanced, modern widgets like Treeview (for job tables), Progressbar, and styled buttons.
+
+messagebox           #Displays pop-up messages like “Job Added Successfully” or “Error: No file selected.”
+
+filedialog           #Opens the system’s file browser so the user can select a PDF to upload.
