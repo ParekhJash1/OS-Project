@@ -1,0 +1,16 @@
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
+import threading
+import time
+from collections import deque
+import uuid
+import os
+from queue import Queue, Empty
+
+
+# --- Attempt to import PyPDF2 for PDF page counting ---
+try:
+    import PyPDF2
+    PYPDF2_AVAILABLE = True
+except ImportError:
+    PYPDF2_AVAILABLE = False
